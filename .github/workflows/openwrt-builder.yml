@@ -150,12 +150,12 @@ jobs:
           qemu-img convert -f vmdk -O raw "$vmdk" "$raw"
           echo "Resizing to 2G..."
           qemu-img resize "$raw" 2G
-          echo "Converting to VMDK (monolithicSparse) for ESXi datastore..."
-          qemu-img convert -f raw -O vmdk -o subformat=monolithicSparse "$raw" "$out"
+          echo "Converting to VMDK (streamOptimized) for ESXi datastore..."
+          qemu-img convert -f raw -O vmdk -o subformat=streamOptimized "$raw" "$out"
           rm -f "$raw"
           # 替换原文件
           mv "$out" "$vmdk"
-          echo "Done: $vmdk (monolithicSparse, 2G)"
+          echo "Done: $vmdk (streamOptimized, 2G)"
         done
 
     - name: Organize files
