@@ -6,7 +6,7 @@
 
 <style>
 /* ─── 整体卡片布局 ─── */
-.au-wrap { max-width: 780px; margin: 0 auto; }
+.au-wrap { max-width: 780px; margin: 20px auto 0; }
 
 .au-card {
     background: var(--background-color-medium, #fff);
@@ -14,6 +14,7 @@
     border-radius: 6px;
     padding: 18px 22px;
     margin-bottom: 18px;
+    color: var(--text-color-high, #333);
 }
 .au-card h3 {
     margin: 0 0 14px;
@@ -22,6 +23,7 @@
     color: var(--text-color-high, #333);
     border-bottom: 1px solid var(--border-color, #eee);
     padding-bottom: 8px;
+    background: transparent;
 }
 
 /* ─── 版本状态块 ─── */
@@ -201,16 +203,6 @@
 .au-banner.error   { background:#fdecea; border-left:4px solid #e44; color:#922b21; }
 
 /* ─── 适配深色模式主题（如 Argon Dark） ─── */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --background-color-medium: #2a2a2a;
-        --border-color: #444;
-        --text-color-high: #e0e0e0;
-        --text-color-low: #888;
-        --background-color: #222;
-        --background-color-low: #333;
-    }
-}
 html[data-darkmode="true"], body.dark {
     --background-color-medium: #2a2a2a !important;
     --border-color: #444 !important;
