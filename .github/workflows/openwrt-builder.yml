@@ -97,7 +97,7 @@ jobs:
 
     - name: Download package
       id: package
-      timeout-minutes: 20
+      timeout-minutes: 40
       run: |
         cd openwrt
         make defconfig
