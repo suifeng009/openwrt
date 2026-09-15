@@ -19,7 +19,7 @@ CORE_DIR="package/base-files/files/etc/openclash/core"
 mkdir -p "$CORE_DIR"
 
 if curl -sL --connect-timeout 60 \
-    https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-amd64.tar.gz \
+    https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-amd64-compatible.tar.gz \
     | tar xzvC "$CORE_DIR" -f -; then
     mv "$CORE_DIR/clash" "$CORE_DIR/clash_meta" 2>/dev/null || true
     chmod +x "$CORE_DIR/clash_meta"
