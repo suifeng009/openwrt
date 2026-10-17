@@ -1,0 +1,13 @@
+{
+	"admin/status/client-history": {
+		"title": "接入历史",
+		"order": 5,
+		"action": {
+			"type": "view",
+			"path": "client-history"
+		},
+		"depends": {
+			"acl": [ "luci-app-client-history" ]
+		}
+	}
+}

@@ -1,0 +1,199 @@
+#!/bin/sh
+# =============================================================================
+# client-history - 客户端接入历史采集器
+#
+# 每 60 秒对 dnsmasq 租约表做一次快照并做 diff：
+#   - 新出现的 MAC        -> 记 ONLINE，首次接入 = 现在
+#   - 重新出现的 MAC      -> 接入次数 +1，最近接入 = 现在
+#   - 消失的 MAC          -> 连续两轮都不见才记 OFFLINE（防读到半截租约表）
+#   - 重启后回来的已知设备 -> 记 REBOOT，不计次数（防重启刷出一堆假接入）
+#
+# 输出：
+#   /root/client-history.csv   汇总表（每台设备一行）
+#       first_seen,last_online,last_seen,count,online,mac,ip,hostname
+#       first_seen 为 "-" 表示这台设备在插件部署前就已存在，真实接入时间未知
+#   /root/client-history.log   流水账（每次上下线一行）
+#       时间,mac,ip,hostname,ONLINE|OFFLINE|REBOOT
+#   /root/.client-history.meta 内部状态（boot_id / 启动时间），sysupgrade 保留
+#
+# 设计要点：
+#   - 不依赖 dnsmasq 写 syslog（本固件 /etc/dnsmasq.conf 有 log-facility=/dev/null），
+#     直接读租约表，不受 syslog 环形缓冲大小影响。
+#   - 租约到期前 dnsmasq 会一直保留记录（12h），不会漏掉接入事件。
+#   - 写盘前校验行数，避免 awk 中途失败时把历史表覆盖成只剩表头。
+#   - 只在「设备集合变化」或每 10 轮时才落盘，减少 flash 写入。
+# =============================================================================
+
+DB=/root/client-history.csv
+LOG=/root/client-history.log
+META=/root/.client-history.meta
+CUR=/tmp/.ch.cur
+PREV=/tmp/.ch.prev
+PENDING=/tmp/.ch.pending
+
+INTERVAL=60
+SAVE_EVERY=10
+MAXLOG=1048576
+HEADER="first_seen,last_online,last_seen,count,online,mac,ip,hostname"
+BOOT_GRACE=900
+
+# --- 单实例保护 ---
+# 用 pidfile 而不是 flock：flock 的 fd 会被 sleep 等子进程继承，
+# 主进程被 kill 后孤儿 sleep 还攥着锁，导致重启时新实例起不来。
+PIDF=/var/run/client-history.pid
+if [ -f "$PIDF" ]; then
+	OLDPID=$(cat "$PIDF" 2>/dev/null)
+	if [ -n "$OLDPID" ] && kill -0 "$OLDPID" 2>/dev/null; then
+		exit 0
+	fi
+fi
+echo $$ > "$PIDF"
+cleanup() { rm -f "$PIDF"; }
+trap cleanup EXIT
+trap 'exit 0' INT TERM
+
+# --- 租约文件位置（跟随 dnsmasq 配置，读不到就用默认值）---
+LEASEFILE=$(uci -q get dhcp.@dnsmasq[0].leasefile 2>/dev/null)
+[ -n "$LEASEFILE" ] || LEASEFILE=/tmp/dhcp.leases
+
+[ -f "$LOG" ] || : > "$LOG"
+
+# --- 首次部署判定 ---
+BOOTSTRAP=0
+if [ ! -f "$DB" ]; then
+	echo "$HEADER" > "$DB"
+	BOOTSTRAP=1
+fi
+
+# --- 重启判定：boot_id 变了说明系统重启过 ---
+BOOTID=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)
+OLD_BOOTID=$(sed -n 's/^boot_id=//p' "$META" 2>/dev/null)
+NOW_EPOCH=$(date +%s)
+UP=$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)
+BOOT_EPOCH=$((NOW_EPOCH - UP))
+
+REBOOTED=0
+if [ -n "$BOOTID" ] && [ -n "$OLD_BOOTID" ] && [ "$BOOTID" != "$OLD_BOOTID" ]; then
+	REBOOTED=1
+fi
+printf 'boot_id=%s\nboot_epoch=%s\n' "$BOOTID" "$BOOT_EPOCH" > "$META"
+
+# 重启后把上一轮的「在线」静默清零，不写事件、不改次数
+if [ "$REBOOTED" = 1 ]; then
+	awk -F, -v OFS=, 'NR == 1 { print; next } { $5 = 0; print }' "$DB" > "$DB.new" 2>/dev/null
+	if [ "$(wc -l < "$DB.new" 2>/dev/null || echo 0)" -ge 1 ]; then
+		mv -f "$DB.new" "$DB"
+	else
+		rm -f "$DB.new"
+	fi
+fi
+
+: > "$PENDING"
+
+tick=0
+while :; do
+	# 开机后 NTP 未同步时系统时间可能是 1970，先等时间正常再记
+	if [ "$(date +%Y)" -lt 2020 ]; then
+		sleep "$INTERVAL"
+		continue
+	fi
+
+	NOW=$(date '+%Y-%m-%d %H:%M:%S')
+	NOW_EPOCH=$(date +%s)
+
+	# 重启宽限期内（默认 15 分钟）回来的老设备记 REBOOT
+	GRACE=0
+	if [ "$REBOOTED" = 1 ] && [ $((NOW_EPOCH - BOOT_EPOCH)) -lt "$BOOT_GRACE" ]; then
+		GRACE=1
+	fi
+
+	# 归一化当前租约：到期时间 MAC IP 主机名 clientid  ->  mac ip hostname
+	# 主机名里可能被客户端塞进逗号/换行，会把 CSV 撑破，这里统一洗掉
+	awk '{
+		h = ($4 == "*" || $4 == "") ? "-" : $4
+		gsub(/[,\r\n\t]/, "_", h)
+		print tolower($2), $3, h
+	}' "$LEASEFILE" 2>/dev/null | sort -u > "$CUR"
+
+	# 集合没变化、没有待确认下线、且未到刷新周期时，跳过写盘
+	if [ ! -f "$PREV" ] || ! cmp -s "$CUR" "$PREV" || [ -s "$PENDING" ] || [ $((tick % SAVE_EVERY)) -eq 0 ]; then
+		: > "$PENDING.new"
+
+		awk -v now="$NOW" -v logf="$LOG" -v curfile="$CUR" -v header="$HEADER" \
+			-v pendfile="$PENDING" -v newpend="$PENDING.new" \
+			-v bootstrap="$BOOTSTRAP" -v grace="$GRACE" '
+			BEGIN {
+				FS = ","
+				print header
+				while ((getline line < curfile) > 0) {
+					split(line, a, " ")
+					cur[a[1]] = a[2]
+					curh[a[1]] = a[3]
+				}
+				close(curfile)
+				while ((getline line < pendfile) > 0)
+					if (line != "") pend[line] = 1
+				close(pendfile)
+			}
+			FNR == 1 { next }                       # 跳过旧表头
+			{
+				mac = $6
+				if (mac in cur) {
+					delete pend[mac]                 # 出现了，取消待确认
+					if ($5 == 1) {                   # 一直在线：只刷新 last_seen
+						fo = $1; lo = $2; cnt = $4
+					} else if (grace == 1) {           # 重启宽限期内回来：不计次数
+						fo = $1; lo = now; cnt = $4
+						print now "," mac "," cur[mac] "," curh[mac] ",REBOOT" >> logf
+					} else {                         # 真正的重新接入
+						fo = $1; lo = now; cnt = $4 + 1
+						print now "," mac "," cur[mac] "," curh[mac] ",ONLINE" >> logf
+					}
+					print fo "," lo "," now "," cnt ",1," mac "," cur[mac] "," curh[mac]
+				} else {
+					if ($5 == 1 && (mac in pend)) {   # 连续两轮不见：确认下线
+						print now "," mac "," $7 "," $8 ",OFFLINE" >> logf
+						print $1 "," $2 "," $3 "," $4 ",0," mac "," $7 "," $8
+					} else if ($5 == 1) {             # 第一轮不见：挂起，先不动
+						pend[mac] = 1
+						print $1 "," $2 "," $3 "," $4 ",1," mac "," $7 "," $8
+					} else {
+						print $1 "," $2 "," $3 "," $4 ",0," mac "," $7 "," $8
+					}
+				}
+				seen[mac] = 1
+			}
+			END {
+				for (m in cur)                       # 首次出现的设备
+					if (!(m in seen)) {
+						print now "," m "," cur[m] "," curh[m] ",ONLINE" >> logf
+						if (bootstrap == 1)
+							print "-" "," now "," now ",1,1," m "," cur[m] "," curh[m]
+						else
+							print now "," now "," now ",1,1," m "," cur[m] "," curh[m]
+					}
+				for (m in pend)
+					print m >> newpend
+			}
+		' "$DB" > "$DB.new"
+		RC=$?
+
+		# 关键：awk 失败或产物只剩表头时，绝不覆盖原文件
+		if [ "$RC" = 0 ] && [ "$(wc -l < "$DB.new" 2>/dev/null || echo 0)" -ge 2 ]; then
+			mv -f "$DB.new" "$DB"
+			mv -f "$PENDING.new" "$PENDING"
+		else
+			rm -f "$DB.new" "$PENDING.new"
+		fi
+
+		cp -f "$CUR" "$PREV"
+		BOOTSTRAP=0
+	fi
+
+	# 流水账轮转——本固件没有 stat 命令，用 wc -c
+	SZ=$(wc -c < "$LOG" 2>/dev/null || echo 0)
+	[ "$SZ" -gt "$MAXLOG" ] && mv -f "$LOG" "$LOG.1"
+
+	tick=$((tick + 1))
+	sleep "$INTERVAL"
+done

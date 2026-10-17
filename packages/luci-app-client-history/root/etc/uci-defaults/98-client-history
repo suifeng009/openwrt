@@ -1,0 +1,9 @@
+#!/bin/sh
+# 首次开机初始化客户端接入历史数据库
+[ -f /root/client-history.csv ] || \
+	echo "first_seen,last_online,last_seen,count,online,mac,ip,hostname" > /root/client-history.csv
+[ -f /root/client-history.log ] || : > /root/client-history.log
+
+/etc/init.d/client-history enable
+/etc/init.d/client-history start
+exit 0

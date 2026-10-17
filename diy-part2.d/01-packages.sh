@@ -4,7 +4,7 @@
 # 集成本地源码插件
 echo "[Packages] Using repository root: $REPO_SRC"
 echo "[Packages] Preparing custom local packages..."
-for pkg in luci-app-autoupdate luci-app-aliddns luci-app-argon-config; do
+for pkg in luci-app-autoupdate luci-app-aliddns luci-app-argon-config luci-app-client-history; do
     if [ -d "$REPO_SRC/packages/$pkg" ]; then
         cp -r "$REPO_SRC/packages/$pkg" "package/$pkg"
         echo "  -> Copied local package: $pkg"
