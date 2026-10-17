@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-client-history
-PKG_VERSION:=1.1.0
+PKG_VERSION:=1.2.0
 PKG_RELEASE:=1
 
 PKG_LICENSE:=Apache-2.0
@@ -46,6 +46,10 @@ define Package/luci-app-client-history/install
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/client-history.js \
 		$(1)/www/luci-static/resources/view/
 
+	# 设备别名配置（/etc/config 默认随 sysupgrade 保留）
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_CONF) ./root/etc/config/client-history $(1)/etc/config/client-history
+
 	# 菜单与权限
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DATA) ./root/usr/share/luci/menu.d/luci-app-client-history.json \
@@ -65,6 +69,10 @@ define Package/luci-app-client-history/install
 	# sysupgrade 保留数据
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_DATA) ./root/lib/upgrade/keep.d/client-history $(1)/lib/upgrade/keep.d/
+endef
+
+define Package/luci-app-client-history/conffiles
+/etc/config/client-history
 endef
 
 define Package/luci-app-client-history/postinst

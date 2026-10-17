@@ -1,11 +1,15 @@
 {
 	"luci-app-client-history": {
-		"description": "客户端接入历史 - 读取接入记录数据",
+		"description": "客户端接入历史 - 读取接入记录、维护设备别名",
 		"read": {
 			"file": {
 				"/root/client-history.csv": [ "read" ],
 				"/root/client-history.log": [ "read" ]
-			}
+			},
+			"uci": [ "client-history" ]
+		},
+		"write": {
+			"uci": [ "client-history" ]
 		}
 	}
 }
