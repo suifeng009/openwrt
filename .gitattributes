@@ -3,3 +3,12 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 *.config text eol=lf
+
+# 无扩展名的脚本与构建文件：必须 LF
+# 这些文件会直接进固件（init.d / uci-defaults）或参与构建（Makefile），
+# 一旦带上 CRLF，路由器上会报 $'\r': not found，make 也会解析失败。
+Makefile text eol=lf
+**/etc/init.d/* text eol=lf
+**/etc/uci-defaults/* text eol=lf
+**/etc/rc.local text eol=lf
+**/lib/upgrade/keep.d/* text eol=lf
