@@ -1,0 +1,21 @@
+{
+	"luci-app-adguardhome": {
+		"description": "AdGuard Home - 内嵌面板与服务启停",
+		"read": {
+			"file": {
+				"/etc/init.d/adguardhome": [ "exec" ],
+				"/opt/AdGuardHome/AdGuardHome": [ "exec" ],
+				"/sbin/uci": [ "exec" ]
+			},
+			"uci": [ "adguardhome" ]
+		},
+		"write": {
+			"file": {
+				"/etc/init.d/adguardhome": [ "exec" ],
+				"/opt/AdGuardHome/AdGuardHome": [ "exec" ],
+				"/sbin/uci": [ "exec" ]
+			},
+			"uci": [ "adguardhome" ]
+		}
+	}
+}

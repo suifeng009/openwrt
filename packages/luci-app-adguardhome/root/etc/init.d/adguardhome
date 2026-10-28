@@ -1,0 +1,35 @@
+#!/bin/sh /etc/rc.common
+# AdGuard Home 服务控制
+#
+# 本脚本只负责拉起 /opt/AdGuardHome/AdGuardHome 进程，不做任何 DNS 接管。
+# 服务默认【不启用、不启动】，完全由用户在 LuCI 面板里手动开启，
+# 因此不用 AdGuard Home 的用户不会多出一个进程、也不会多占一个端口。
+#
+# 工作目录 /opt/AdGuardHome，配置 /opt/AdGuardHome/AdGuardHome.yaml，
+# 首次启动时由 AdGuard Home 自行生成默认配置并进入安装向导，
+# DNS 监听端口、上游服务器、过滤规则全部由用户自己在面板内设置。
+
+START=99
+STOP=10
+USE_PROCD=1
+
+PROG=/opt/AdGuardHome/AdGuardHome
+WORKDIR=/opt/AdGuardHome
+CONF="$WORKDIR/AdGuardHome.yaml"
+
+start_service() {
+	[ -x "$PROG" ] || {
+		logger -t adguardhome "core binary not found at $PROG, service skipped"
+		return 0
+	}
+
+	mkdir -p "$WORKDIR"
+
+	procd_open_instance
+	procd_set_param command "$PROG" --no-check-update -c "$CONF" -w "$WORKDIR"
+	procd_set_param respawn 3600 5 5
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_set_param limits nofile="1000000 1000000"
+	procd_close_instance
+}

@@ -1,0 +1,39 @@
+# ----------------------------------------------------------------------
+# OpenWrt Build Environment Ignore List
+# ----------------------------------------------------------------------
+
+# Cloned source code (from build.sh)
+lede/
+openwrt/
+
+# Build artifacts and directories (inside source tree but good to be safe)
+/bin/
+/build_dir/
+/staging_dir/
+/tmp/
+/dl/
+/feeds/
+
+# Logs and outputs
+/logs/
+*.log
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editor / IDE settings
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# AdGuard Home 核心二进制（构建时由 diy-part2.d/06-adguardhome.sh 自动下载，不入库）
+packages/luci-app-adguardhome/root/opt/AdGuardHome/AdGuardHome

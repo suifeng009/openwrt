@@ -1,0 +1,9 @@
+config adguardhome 'main'
+	# 是否随系统启动（由 init.d enable/disable 决定实际生效，这里仅作展示与记录）
+	option enabled '1'
+	# LuCI 内嵌面板指向的 AdGuard Home Web 地址
+	# 仅在用户在 AdGuard Home 内修改了 Web 端口时需要同步修改此值
+	option web_port '3000'
+	option web_proto 'http'
+	# AdGuard Home 工作目录（配置文件、过滤列表、统计数据库均在此）
+	option workdir '/etc/AdGuardHome'

@@ -1,0 +1,28 @@
+#!/bin/sh
+# AdGuard Home 首次开机初始化
+#
+# 【设计原则：零预设】
+#   本脚本不会启用服务、不会启动服务、不写入任何 uci 配置，
+#   也不会碰 network / dhcp / firewall 中的任何一个选项。
+#
+#   因此：
+#     - 不用 AdGuard Home 的用户：开机后没有任何额外进程、没有额外监听端口，
+#       DNS 依然由 dnsmasq（及 OpenClash）处理，上网行为与未集成时完全一致；
+#     - 要用 AdGuard Home 的用户：进「服务 → AdGuard Home」面板点「启动服务」，
+#       首次启动会进入 AdGuard Home 自带的安装向导，端口与上游 DNS 由他自己设置。
+#
+# 这里只做一件无害的事：清理早期手工部署遗留的旧菜单与旧跳转页，
+# 避免与新的内嵌面板同时出现两个 AdGuard Home 菜单项。
+
+[ -f /usr/share/luci/menu.d/luci-app-agh-link.json ] && \
+	rm -f /usr/share/luci/menu.d/luci-app-agh-link.json
+
+[ -d /www/luci-static/resources/view/agh ] && \
+	rm -rf /www/luci-static/resources/view/agh
+
+# 确保工作目录存在（不创建任何配置文件，AdGuard Home 首次启动时自行生成）
+[ -x /opt/AdGuardHome/AdGuardHome ] && mkdir -p /opt/AdGuardHome
+
+rm -rf /tmp/luci-indexcache /tmp/luci-modulecache
+
+exit 0

@@ -1,0 +1,4 @@
+# AdGuard Home 用户数据（sysupgrade 时保留，避免升级后重新配置）
+# 只保留配置与统计数据库，不保留 38MB 的核心二进制——核心随固件更新。
+/opt/AdGuardHome/AdGuardHome.yaml
+/opt/AdGuardHome/data
