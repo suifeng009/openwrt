@@ -1,4 +1,9 @@
-# AdGuard Home 用户数据（sysupgrade 时保留，避免升级后重新配置）
-# 只保留配置与统计数据库，不保留 38MB 的核心二进制——核心随固件更新。
+# AdGuard Home 工作目录：配置文件 AdGuardHome.yaml + 统计数据 data/（仪表盘、查询日志）
+# 放在 /etc 下，sysupgrade 的默认方式、-c、以及 Web 界面刷写都会保留。
+/etc/AdGuardHome
+
+# 兼容旧布局：工作目录曾经是 /opt/AdGuardHome，仅供首次开机迁移使用
 /opt/AdGuardHome/AdGuardHome.yaml
 /opt/AdGuardHome/data
+
+# 核心二进制 /opt/AdGuardHome/AdGuardHome 不在此列：它属于软件包，随固件更新替换。

@@ -5,7 +5,17 @@
 # 服务默认【不启用、不启动】，完全由用户在 LuCI 面板里手动开启，
 # 因此不用 AdGuard Home 的用户不会多出一个进程、也不会多占一个端口。
 #
-# 工作目录 /opt/AdGuardHome，配置 /opt/AdGuardHome/AdGuardHome.yaml，
+# 【工作目录为什么放在 /etc 下】
+#   sysupgrade 有三种备份方式，覆盖范围差别很大：
+#     - 默认（Web 界面刷写 / 命令行 sysupgrade）：读 /etc/sysupgrade.conf 与
+#       /lib/upgrade/keep.d/*，/opt 下的路径也在保留范围内；
+#     - -c（本固件的自动更新用的就是这个）：只保留 /etc 下改过的文件，
+#       /opt 下的东西一律丢弃；
+#     - -o：保留 / 下所有改过的文件。
+#   旧版把配置与统计放在 /opt/AdGuardHome，用自动更新（-c）升级时必然丢数据。
+#   统一搬到 /etc/AdGuardHome 后，三种方式都能保住，不再依赖升级参数。
+#
+# 核心二进制仍在 /opt/AdGuardHome/AdGuardHome，随固件更新替换。
 # 首次启动时由 AdGuard Home 自行生成默认配置并进入安装向导，
 # DNS 监听端口、上游服务器、过滤规则全部由用户自己在面板内设置。
 
@@ -14,7 +24,10 @@ STOP=10
 USE_PROCD=1
 
 PROG=/opt/AdGuardHome/AdGuardHome
-WORKDIR=/opt/AdGuardHome
+
+# 工作目录：优先取 uci 配置，缺省 /etc/AdGuardHome
+WORKDIR="$(uci -q get adguardhome.main.workdir)"
+[ -n "$WORKDIR" ] || WORKDIR=/etc/AdGuardHome
 CONF="$WORKDIR/AdGuardHome.yaml"
 
 start_service() {

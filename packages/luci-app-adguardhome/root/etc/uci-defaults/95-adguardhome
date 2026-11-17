@@ -10,18 +10,58 @@
 #       DNS 依然由 dnsmasq（及 OpenClash）处理，上网行为与未集成时完全一致；
 #     - 要用 AdGuard Home 的用户：进「服务 → AdGuard Home」面板点「启动服务」，
 #       首次启动会进入 AdGuard Home 自带的安装向导，端口与上游 DNS 由他自己设置。
-#
-# 这里只做一件无害的事：清理早期手工部署遗留的旧菜单与旧跳转页，
-# 避免与新的内嵌面板同时出现两个 AdGuard Home 菜单项。
 
+# 清理早期手工部署遗留的旧菜单与旧跳转页，
+# 避免与新的内嵌面板同时出现两个 AdGuard Home 菜单项。
 [ -f /usr/share/luci/menu.d/luci-app-agh-link.json ] && \
 	rm -f /usr/share/luci/menu.d/luci-app-agh-link.json
 
 [ -d /www/luci-static/resources/view/agh ] && \
 	rm -rf /www/luci-static/resources/view/agh
 
+# ---------- 工作目录迁移：/opt/AdGuardHome → /etc/AdGuardHome ----------
+# 旧版把 AdGuardHome.yaml 与 data/（统计数据）放在 /opt 下。
+# 自动更新用的是 sysupgrade -c，只保留 /etc，所以每次升级统计都会清零。
+# 这里把旧目录里的配置与数据搬到 /etc 下（搬成功后删除旧的，避免两份数据各占空间）。
+# 新目录已有配置时不做任何事，可重复执行。
+migrate_workdir() {
+	local old=/opt/AdGuardHome
+	local new=/etc/AdGuardHome
+	local was_running=0
+
+	[ -d "$old" ] || return 0
+	if [ ! -f "$old/AdGuardHome.yaml" ] && [ ! -d "$old/data" ]; then
+		return 0
+	fi
+	[ -f "$new/AdGuardHome.yaml" ] && return 0
+
+	# 服务在跑的话先停下：否则复制到的是写了一半的库，
+	# 而且删掉旧文件后进程还会往已删除的 inode 里写，等于白搬。
+	if [ -x /etc/init.d/adguardhome ] && /etc/init.d/adguardhome running >/dev/null 2>&1; then
+		was_running=1
+		/etc/init.d/adguardhome stop >/dev/null 2>&1
+	fi
+
+	mkdir -p "$new"
+	[ -f "$old/AdGuardHome.yaml" ] && cp -a "$old/AdGuardHome.yaml" "$new/" 2>/dev/null
+	[ -d "$old/data" ] && cp -a "$old/data" "$new/" 2>/dev/null
+
+	if [ -f "$new/AdGuardHome.yaml" ] || [ -d "$new/data" ]; then
+		rm -rf "$old/AdGuardHome.yaml" "$old/data"
+		sync
+		echo "adguardhome: 工作目录已迁移到 $new（统计数据不再随升级丢失）"
+	fi
+
+	[ "$was_running" = 1 ] && /etc/init.d/adguardhome start >/dev/null 2>&1
+
+	return 0
+}
+migrate_workdir
+
 # 确保工作目录存在（不创建任何配置文件，AdGuard Home 首次启动时自行生成）
-[ -x /opt/AdGuardHome/AdGuardHome ] && mkdir -p /opt/AdGuardHome
+WORKDIR="$(uci -q get adguardhome.main.workdir)"
+[ -n "$WORKDIR" ] || WORKDIR=/etc/AdGuardHome
+mkdir -p "$WORKDIR"
 
 rm -rf /tmp/luci-indexcache /tmp/luci-modulecache
 

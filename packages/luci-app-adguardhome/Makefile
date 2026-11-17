@@ -15,7 +15,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-adguardhome
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_LICENSE:=Apache-2.0
 PKG_MAINTAINER:=BH5UOE
@@ -37,9 +37,13 @@ define Package/luci-app-adguardhome/description
   集成 AdGuard Home 服务本体，并在「服务」菜单中提供一个内嵌面板入口。
 
   部署路径（x86_64）：
-    - 核心：/opt/AdGuardHome/AdGuardHome
-    - 配置：/opt/AdGuardHome/AdGuardHome.yaml（sysupgrade 保留）
-    - 数据：/opt/AdGuardHome/data（sysupgrade 保留）
+    - 核心：/opt/AdGuardHome/AdGuardHome（随固件更新）
+    - 配置：/etc/AdGuardHome/AdGuardHome.yaml（sysupgrade 保留）
+    - 数据：/etc/AdGuardHome/data（sysupgrade 保留）
+
+  工作目录之所以放在 /etc 下：sysupgrade 的默认方式、-c 与 Web 刷写都会保留 /etc，
+  而 /opt 只有默认方式才会保留——自动更新用的是 -c，放在 /opt 会导致每次升级
+  统计数据（仪表盘、查询日志）全部清零。
 
   本包刻意保持「零预设」：
     - 服务默认不启用、不启动，不用它的人开机后无额外进程、无额外端口；

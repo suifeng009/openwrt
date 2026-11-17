@@ -6,4 +6,6 @@ config adguardhome 'main'
 	option web_port '3000'
 	option web_proto 'http'
 	# AdGuard Home 工作目录（配置文件、过滤列表、统计数据库均在此）
+	# 刻意放在 /etc 下：sysupgrade 无论用默认方式、-c 还是 Web 刷写，都会保留 /etc，
+	# 放在 /opt 则只有默认方式才会保留，用自动更新（-c）升级会丢统计与配置。
 	option workdir '/etc/AdGuardHome'

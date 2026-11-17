@@ -115,18 +115,30 @@ chmod +x *.sh
 
 > ⚠️ 配置文件里 `users:` 为空时，AdGuard Home 会**不启用认证**，任何人访问 Web 面板都能进，所以向导那一步不能跳过。
 
-忘记密码时：编辑 `/opt/AdGuardHome/AdGuardHome.yaml`，把 `users:` 下的内容清空，重启服务即可重新回到向导。
+忘记密码时：编辑 `/etc/AdGuardHome/AdGuardHome.yaml`，把 `users:` 下的内容清空，重启服务即可重新回到向导。
 
 ### 端口与数据
 
 | 项目 | 位置 / 默认值 |
 | :--- | :--- |
-| 核心二进制 | `/opt/AdGuardHome/AdGuardHome`（随固件更新） |
-| 配置文件 | `/opt/AdGuardHome/AdGuardHome.yaml` |
-| 数据与统计 | `/opt/AdGuardHome/data` |
+| 核心二进制 | `/opt/AdGuardHome/AdGuardHome`（随固件更新替换） |
+| 配置文件 | `/etc/AdGuardHome/AdGuardHome.yaml` |
+| 数据与统计 | `/etc/AdGuardHome/data` |
 | Web 面板 | 默认 `3000`，改过端口后到菜单里点「同步」 |
 
-升级固件时只保留配置和数据，核心二进制随新固件替换，不用重新配置。
+升级固件时只保留配置与统计数据，核心二进制随新固件替换，不用重新配置。
+
+> 📌 **工作目录在 `/etc` 下，不再放 `/opt`。** sysupgrade 的三种备份方式覆盖范围不同：
+> 默认方式与 Web 界面刷写会读 `/lib/upgrade/keep.d`（`/opt` 也会保留），
+> 而本固件的自动更新用的是 `-c`——**只保留 /etc 下改过的文件**。
+> 数据放 `/opt` 时，每次自动更新后仪表盘统计必然清零；搬到 `/etc` 后三种方式都能保住。
+>
+> 从旧固件（数据在 `/opt/AdGuardHome`）升上来时，首次开机由
+> `95-adguardhome` 自动迁移配置与数据；若想这次升级就不丢，
+> 先在 SSH 里执行一次：
+> ```sh
+> mkdir -p /etc/AdGuardHome && cp -a /opt/AdGuardHome/AdGuardHome.yaml /opt/AdGuardHome/data /etc/AdGuardHome/ 2>/dev/null
+> ```
 
 ---
 *注：由于 Linux 终端兼容性考虑，所有主干命令控制脚本均统一采用了英文命名。*

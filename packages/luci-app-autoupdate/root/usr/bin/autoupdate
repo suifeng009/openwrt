@@ -287,6 +287,11 @@ cmd_upgrade() {
     log "执行 sysupgrade，保留配置: $keep_config"
 
     if [ "$keep_config" = "1" ]; then
+        # 升级前先停掉 AdGuard Home：统计数据是 SQLite 数据库，
+        # 运行中直接归档有可能拿到写了一半的库；停服后再落盘更稳。
+        # 服务本身已 enable 的话，重启后 procd 会自动拉起（/etc/rc.d 由 -c 保留）。
+        [ -x /etc/init.d/adguardhome ] && /etc/init.d/adguardhome stop 2>/dev/null
+        sync
         exec sysupgrade -c "$FW_FILE"
     else
         exec sysupgrade -n "$FW_FILE"
