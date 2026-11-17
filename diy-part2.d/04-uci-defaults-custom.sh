@@ -22,6 +22,8 @@ uci set luci.main.lang='zh_cn'
 uci commit luci
 
 # 设置 LuCI 默认主题为 Argon
+# 注意：这里只在首次装机时生效（被 custom_inited 挡住），主题的长期保证由
+# 05-luci-theme-argon.sh（出厂配置 + luci.themes 注册表 + 幂等 uci-defaults）负责
 uci set luci.main.mediaurlbase='/luci-static/argon'
 uci commit luci
 

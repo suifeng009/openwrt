@@ -106,6 +106,17 @@ jobs:
         sed -i '/^CONFIG_VERSION_NUMBER=/d' .config
         echo "CONFIG_VERSION_NUMBER=\"${{ env.BUILD_VERSION }}\"" >> .config
         echo "[版本注入] CONFIG_VERSION_NUMBER = ${{ env.BUILD_VERSION }}"
+
+        # 防呆：上游 luci-theme-argon 的依赖变动时，make defconfig 会静默取消主题选择，
+        # 导致固件出厂主题退回 Bootstrap。这里强制补回；缺包时让编译直接报错而不是静默降级。
+        for pkg in luci-theme-argon luci-app-argon-config; do
+          if grep -q "^CONFIG_PACKAGE_${pkg}=y" .config; then
+            echo "[主题检查] ${pkg} 已启用"
+          else
+            echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+            echo "[主题检查] ${pkg} 被 make defconfig 丢弃，已强制重新启用"
+          fi
+        done
         
         # 第一次多线程下载
         make download -j8
