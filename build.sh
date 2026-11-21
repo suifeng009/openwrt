@@ -108,6 +108,10 @@ if [ -f "$BASE_DIR/.config" ]; then
     cp "$BASE_DIR/.config" .config
     # 扩展生成完整的默认配置清单
     make defconfig
+
+    # Intel 无线网卡支持自检（说明见 scripts/wifi-guard.sh 头部）
+    # 必须在版本号注入之前：守卫内部会再跑一次 defconfig 复验依赖
+    bash "$BASE_DIR/scripts/wifi-guard.sh" .
     # make defconfig 会覆盖版本号，必须在之后重新注入
     BUILD_DATE="$BUILD_VERSION"
     sed -i '/^CONFIG_VERSION_NUMBER=/d' .config

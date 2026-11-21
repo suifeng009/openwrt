@@ -97,6 +97,8 @@ if [ -f "$BASE_DIR/.config" ]; then
     echo "CONFIG_CCACHE=y" >> .config
     # 扩展生成完整依赖清单
     make defconfig
+    # Intel 无线网卡支持自检：防止增量编译时无线驱动被静默裁剪
+    bash "$BASE_DIR/scripts/wifi-guard.sh" .
 else
     echo "❌ 没有找到 $BASE_DIR/.config"
     exit 1

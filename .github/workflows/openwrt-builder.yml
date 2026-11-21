@@ -101,6 +101,12 @@ jobs:
       run: |
         cd openwrt
         make defconfig
+
+        # Intel 无线网卡支持自检：补写 DRIVER_11AC/AX/BE 等隐藏开关 → 重跑 defconfig 复验
+        # → 核对 15 个 iwlwifi 固件包在上游确实存在。缺失即失败，不产出假支持固件。
+        # 必须放在版本号注入之前：守卫内部会再跑一次 make defconfig。
+        bash "$GITHUB_WORKSPACE/scripts/wifi-guard.sh" .
+
         # make defconfig 会用 Kconfig 默认值覆盖 CONFIG_VERSION_NUMBER，
         # 必须在 defconfig 之后再次写入版本号。
         sed -i '/^CONFIG_VERSION_NUMBER=/d' .config
